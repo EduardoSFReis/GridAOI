@@ -1,0 +1,127 @@
+#É um softaware que abre uma imagem e permite voçe selecionar uma area de interrese AOIs,
+#ele compara tal area com dados fornecidos por um arquivo .csv e fornece os dados de todos
+#os pontos que estao em tal area podendo ser tratado tais dados de diferente maneira como 
+#media de duração etc.Esse software esta sendo usadoprincipalmente para seleçoes de Aois 
+#para comparação com dados de um eye tracker.
+
+
+import cv2
+import matplotlib.pyplot as plt
+from matplotlib.widgets import RectangleSelector
+import numpy as np
+import pandas as pd
+from PIL import Image
+import matplotlib.patches as patches
+import matplotlib as mpl
+from matplotlib.patches import Rectangle
+
+#Seleciona a AOi
+def Selecionar_aoi(image_path):
+   
+    # Carrega a imagem como uma matriz NumPy usando o OpenCV
+    
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    image = cv2.flip(image, 0)
+    fig, ax = plt.subplots()
+    
+    ax.imshow(image, cmap='gray')
+    
+    # Inicializa as variáveis para armazenar as coordenadas da região selecionada
+    
+    x1, y1, x2, y2 = None, None, None, None
+    id = 1
+    
+    def onselect(eclick, erelease):
+        nonlocal x1, y1, x2, y2
+        x1, y1 = eclick.xdata, eclick.ydata
+        x2, y2 = erelease.xdata, erelease.ydata
+        
+        # Imprime as coordenadas da região selecionada
+        
+        #print("Coordenadas da região selecionada: ({}, {}), ({}, {})".format(x1, y1, x2, y2))
+        
+        # Fecha a figura após a seleção
+        
+        plt.close()
+    
+    # Cria o seletor de retângulo
+    
+    rs = RectangleSelector(ax, onselect, drawtype='box', useblit=True, button=[1], 
+                           minspanx=5, minspany=5, spancoords='pixels', interactive=True)
+    
+    plt.gca().invert_yaxis()
+    plt.show()
+    
+    return x1, y1, x2, y2,id
+
+#Define os pontos que estao dentro da aoi
+def Pontos_no_retangulo(x1, y1, x2, y2, pontos_csv, width, height):
+    
+    # Carrega os pontos do arquivo CSV em um DataFrame pandas
+    
+    pontos_df = pd.read_csv(pontos_csv)
+    
+    # Converte as colunas de coordenadas x e y em arrays NumPy
+    
+    x = pontos_df['norm_pos_x'].values * width
+    y = pontos_df['norm_pos_y'].values * height
+    
+    # Verifica quais pontos estão dentro do retângulo usando a lógica de programação
+    
+    dentro_do_retangulo = np.where(
+        (x >= min(x1, x2)) & (x <= max(x1, x2)) & 
+        (y >= min(y1, y2)) & (y <= max(y1, y2))
+    )[0]
+    
+    # Retorna um novo DataFrame contendo apenas os pontos que estão dentro do retângulo
+    
+    return pontos_df.iloc[dentro_do_retangulo]
+
+#Define o tamanho da imagem
+def TamanhoImagem(img):
+    img = Image.open('Pupil\imgs\IB.jpg')
+    width, height = img.size
+    return width, height 
+
+#Gera a imagem com as Aois desenhadas
+def Plot_retangulo(x1, y1, x2, y2, id_val, imagem):
+    # Carrega a imagem
+    img = plt.imread(imagem)
+    img = cv2.flip(img, 0)
+    # Calcula o tamanho do retângulo
+    width = x2 - x1
+    height = y2 - y1
+
+    # Cria o retângulo
+    retangulo = Rectangle((x1, y1), width, height, linewidth=3, edgecolor='red', facecolor='red', alpha=0.5)
+    fig, ax = plt.subplots()
+
+    # Desenha o retângulo na imagem
+    ax.imshow(img)
+    ax.add_patch(retangulo)
+
+    # Adiciona o ID no canto superior esquerdo do retângulo
+    ax.text(x1 + 5, y2 - 35 , str(id_val), color='white', fontsize=12)
+
+    # Mostra o plot
+    plt.gca().invert_yaxis()
+    plt.axis('off')
+    plt.show()
+    
+#-----------------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------------------
+
+x1,y1,x2,y2,ids = Selecionar_aoi("Pupil\imgs\IB.jpg")
+width, height = TamanhoImagem('Pupil\imgs\IB.jpg')
+
+
+x= Pontos_no_retangulo(x1,y1,x2,y2,'Pupil\\arquivos\\fixations_on_surface_img1.csv',width, height)
+print(x)
+
+
+Plot_retangulo(x1,y1,x2,y2, ids,"Pupil\imgs\IB.jpg")
+print(x1,y1,x2,y2,ids)
+
+
+
+
